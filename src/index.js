@@ -54,7 +54,7 @@ async function run() {
 		if (comments && comments.repository.pullRequest.comments.totalCount > 0) {
 			// And mark them as OUTDATED
 			await Promise.all(
-				data.repository.pullRequest.comments.edges
+				comments.repository.pullRequest.comments.edges
 					.filter(({ node }) => node.author.login === 'github-actions')
 					.map(({ node }) => node.id)
 					.map((id) => {
