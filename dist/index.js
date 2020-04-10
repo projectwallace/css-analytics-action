@@ -43268,10 +43268,6 @@ module.exports = ({ stats }) => {
 }
 
 function row([key, value]) {
-	if (Array.isArray(value)) {
-		value = 'N/A'
-	}
-
 	if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
 		value =
 			`<ol>` + value.map((item) => `<li><code>${item}</code></li>`) + `</ol>`
@@ -43287,6 +43283,10 @@ function row([key, value]) {
 				)
 				.join('') +
 			`</tbody></table>`
+	}
+
+	if (Array.isArray(value) && value.length === 0) {
+		value = `<i>N/A</i>`
 	}
 
 	return `| \`${key}\` | ${value} |`
