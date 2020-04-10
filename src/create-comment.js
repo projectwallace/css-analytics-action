@@ -11,14 +11,23 @@ module.exports = ({ stats }) => {
 		.join('\n')
 }
 
-function row([key, value]) {
-	if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-		value =
-			`<ol>` + value.map((item) => `<li><code>${item}</code></li>`) + `</ol>`
-	}
+function formatNumber(number) {
+	return Number.isInteger(number)
+		? new Intl.NumberFormat().format(number)
+		: parseFloat(number).toFixed(3)
+}
 
-	if (Array.isArray(value) && value.some((item) => item.value && item.count)) {
-		value =
+function row([key, value]) {
+	let displayValue = value
+
+	if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+		displayValue =
+			`<ol>` + value.map((item) => `<li><code>${item}</code></li>`) + `</ol>`
+	} else if (
+		Array.isArray(value) &&
+		value.some((item) => item.value && item.count)
+	) {
+		displayValue =
 			`<table><thead><tr><th>count</th><th>value</th></tr></thead><tbody>` +
 			value
 				.map(
@@ -27,11 +36,11 @@ function row([key, value]) {
 				)
 				.join('') +
 			`</tbody></table>`
+	} else if (Array.isArray(value) && value.length === 0) {
+		displayValue = `_N/A_`
+	} else {
+		displayValue = formatNumber(value)
 	}
 
-	if (Array.isArray(value) && value.length === 0) {
-		value = `<i>N/A</i>`
-	}
-
-	return `| \`${key}\` | ${value} |`
+	return `| \`${key}\` | ${displayValue} |`
 }
