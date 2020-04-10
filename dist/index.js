@@ -43275,11 +43275,14 @@ function row([key, value]) {
 
 	if (Array.isArray(value) && value.some((item) => item.value && item.count)) {
 		value =
-			`<ol>` +
+			`<table><thead><tr><th>count</th><th>value</th></tr></thead><tbody>` +
 			value
-				.map((item) => `<li><code>${item.value}</code> (${item.count})</li>`)
+				.map(
+					(item) =>
+						`<tr><td>${item.count}</td><td><code>${item.value}</code></td></tr>`
+				)
 				.join('') +
-			'</ol>'
+			`</tbody></table>`
 	}
 
 	return `| \`${key}\` | ${value} |`
