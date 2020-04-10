@@ -1,6 +1,7 @@
 const fs = require('fs')
 const core = require('@actions/core')
 const github = require('@actions/github')
+const analyze = require('@projectwallace/css-analyzer')
 
 async function run() {
 	try {
@@ -14,7 +15,7 @@ async function run() {
 		// if (eventName !== 'pull_request') return
 
 		// Read CSS file
-		// const css = fs.readFileSync(cssPath, 'utf8')
+		const css = fs.readFileSync(cssPath, 'utf8')
 
 		// Find any previous comments by GitHub Bot
 		const comments = await octokit.graphql(
@@ -49,25 +50,29 @@ async function run() {
 			}
 		)
 
-		console.log({ comments })
+		const hasComments = comments.repository.pullRequest.comments.totalCount > 0
+		const outdatedComments = comments.repository.pullRequest.comments.edges.filter(
+			({ node }) =>
+				node.author.login === 'github-actions' &&
+				node.bodyText.startsWith('## CSS Analytics')
+		)
 
-		if (comments && comments.repository.pullRequest.comments.totalCount > 0) {
+		if (hasComments && outdatedComments.length > 0) {
 			// And mark them as OUTDATED
 			await Promise.all(
-				comments.repository.pullRequest.comments.edges
-					.filter(({ node }) => node.author.login === 'github-actions')
+				outdatedComments
 					.map(({ node }) => node.id)
 					.map((id) => {
 						return octokit.graphql(
 							`
-					mutation MarkCommentOutdated($input: MinimizeCommentInput!) {
-						minimizeComment(input: $input) {
-							minimizedComment {
-								minimizedReason
+							mutation MarkCommentOutdated($input: MinimizeCommentInput!) {
+								minimizeComment(input: $input) {
+									minimizedComment {
+										minimizedReason
+									}
+								}
 							}
-						}
-					}
-					`,
+							`,
 							{
 								input: {
 									classifier: 'OUTDATED',
@@ -80,12 +85,18 @@ async function run() {
 		}
 
 		// POST the actual PR comment
+		const stats = await analyze(css)
 		const formattedBody = `
 			## CSS Analytics
 
 			| Metric  | Value: |
 			|---------|--------|
 			| \`a.b\` | \`1\`  |
+			${Object.entries(stats)
+				.map(([key, value]) => {
+					return `| ${key} | ${value} |`
+				})
+				.join('\n')}
 		`
 			.split('\n')
 			.map((line) => line.trim())
