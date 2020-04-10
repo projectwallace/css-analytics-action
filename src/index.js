@@ -19,20 +19,32 @@ async function run() {
 		const formattedBody = `
 			## CSS Analytics
 
-			| Metric | Value |
-			|--------|-------|
-			| \`a.b\` | \`1\` |
+			| Metric  | Value: |
+			|---------|--------|
+			| \`a.b\` | \`1\`  |
 		`
-		console.log(github.context)
-		// console.log(payload)
-		const owner = payload.repository.owner.login
-		const repo = payload.repository.name
-		const issue_number = payload.number
 
-		// const query = ``
-		// const variables = {}
+		const query = `
+			mutation AddPrComment($comment: AddCommentInput!) {
+				addComment(input: $comment) {
+					commentEdge {
+						node {
+							body
+							bodyHTML
+							bodyText
+						}
+					}
+				}
+			}
+		`
+		const variables = {
+			comment: {
+				subjectId: github.context.pull_request.node_id,
+				body: formattedBody,
+			},
+		}
 
-		// await octokit.graphql(query, variables)
+		await octokit.graphql(query, variables)
 	} catch (error) {
 		core.setFailed(error.message)
 	}
