@@ -55,7 +55,7 @@ async function run() {
 		const outdatedComments = comments.repository.pullRequest.comments.edges.filter(
 			({ node }) =>
 				node.author.login === 'github-actions' &&
-				node.bodyText.startsWith('## CSS Analytics')
+				node.bodyText.startsWith('CSS Analytics')
 		)
 
 		if (hasComments && outdatedComments.length > 0) {

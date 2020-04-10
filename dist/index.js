@@ -22482,7 +22482,7 @@ async function run() {
 		const outdatedComments = comments.repository.pullRequest.comments.edges.filter(
 			({ node }) =>
 				node.author.login === 'github-actions' &&
-				node.bodyText.startsWith('## CSS Analytics')
+				node.bodyText.startsWith('CSS Analytics')
 		)
 
 		if (hasComments && outdatedComments.length > 0) {
@@ -43269,13 +43269,16 @@ module.exports = ({ stats }) => {
 
 function row([key, value]) {
 	if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-		value = `<ol>` + value.map((item) => `<li>${item}</li>`) + `</ol>`
+		value =
+			`<ol>` + value.map((item) => `<li><code>${item}</code></li>`) + `</ol>`
 	}
 
 	if (Array.isArray(value) && value.some((item) => item.value && item.count)) {
 		value =
 			`<ol>` +
-			value.map((item) => `<li>${item.value} (${item.count})</li>`).join('') +
+			value
+				.map((item) => `<li><code>${item.value}</code> (${item.count})</li>`)
+				.join('') +
 			'</ol>'
 	}
 
