@@ -8576,7 +8576,7 @@ async function run() {
 		`
 		const variables = {
 			comment: {
-				subjectId: github.context.pull_request.node_id,
+				subjectId: payload.pull_request.node_id,
 				body: formattedBody,
 			},
 		}
