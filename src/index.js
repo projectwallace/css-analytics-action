@@ -9,7 +9,7 @@ async function run() {
 		const shouldPostPrComment = core.getInput('post-pr-comment') === 'true'
 		const { eventName, payload } = github.context
 		const octokit = new github.GitHub(githubToken)
-		console.log(github.context)
+		// console.log(github.context)
 
 		// if (eventName !== 'pull_request') return
 
@@ -48,6 +48,8 @@ async function run() {
 				prNumber: payload.pull_request.number,
 			}
 		)
+
+		console.log(data)
 
 		if (data.repository.pullRequest.comments.totalCount > 0) {
 			// And mark them as OUTDATED
