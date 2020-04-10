@@ -8552,6 +8552,27 @@ async function run() {
 		// Read CSS file
 		// const css = fs.readFileSync(cssPath, 'utf8')
 
+		// Find any previous comments
+
+		// And mark them as OUTDATED
+		await octokit.graphql(
+			`
+			mutation MarkCommentOutdated($input: MinimizeCommentInput!) {
+				minimizeComment(input: $input) {
+					minimizedComment {
+						minimizedReason
+					}
+				}
+			}
+			`,
+			{
+				input: {
+					classifier: 'OUTDATED',
+					subjectId: 'MDEyOklzc3VlQ29tbWVudDYxMjA0MDA5Ng==',
+				},
+			}
+		)
+
 		// POST the actual PR comment
 		const formattedBody = `
 			## CSS Analytics
@@ -8560,8 +8581,12 @@ async function run() {
 			|---------|--------|
 			| \`a.b\` | \`1\`  |
 		`
+			.split('\n')
+			.map((line) => line.trim())
+			.join('\n')
 
-		const query = `
+		await octokit.graphql(
+			`
 			mutation AddPrComment($comment: AddCommentInput!) {
 				addComment(input: $comment) {
 					commentEdge {
@@ -8573,15 +8598,14 @@ async function run() {
 					}
 				}
 			}
-		`
-		const variables = {
-			comment: {
-				subjectId: payload.pull_request.node_id,
-				body: formattedBody,
-			},
-		}
-
-		await octokit.graphql(query, variables)
+		`,
+			{
+				comment: {
+					subjectId: payload.pull_request.node_id,
+					body: formattedBody,
+				},
+			}
+		)
 	} catch (error) {
 		core.setFailed(error.message)
 	}
