@@ -8545,6 +8545,7 @@ async function run() {
 		const shouldPostPrComment = core.getInput('post-pr-comment') === 'true'
 		const { eventName, payload } = github.context
 		const octokit = new github.GitHub(githubToken)
+		console.log(github.context)
 
 		// if (eventName !== 'pull_request') return
 
