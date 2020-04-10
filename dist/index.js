@@ -885,266 +885,7 @@ module.exports = exports.default;
 
 
 /***/ }),
-/* 8 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-
-exports.compress = compress;
-exports.decompress = decompress;
-exports.compressSync = compressSync;
-exports.decompressSync = decompressSync;
-exports.compressStream = compressStream;
-exports.decompressStream = decompressStream;
-
-const { StreamEncode, StreamDecode } = __webpack_require__(110);
-const { Transform } = __webpack_require__(413);
-
-class TransformStreamEncode extends Transform {
-  constructor(params={}, async=true) {
-    super();
-    this.encoding = false;
-    this.corked = false;
-    this.flushing = false;
-    this.encoder = new StreamEncode(async, params);
-  }
-
-  _transform(chunk, encoding, next) {
-    this.encoding = true;
-    this.encoder.transform(chunk, (err, output) => {
-      this.encoding = false;
-      if (err) {
-        return next(err);
-      }
-      this._push(output);
-      next();
-      if (this.flushing) {
-        this.flush(true);
-      }
-    });
-  }
-
-  _flush(done) {
-    this.encoder.flush(true, (err, output) => {
-      if (err) {
-        return done(err);
-      }
-      this._push(output);
-      done();
-    });
-  }
-
-  _push(output) {
-    if (output) {
-      for (let i = 0; i < output.length; i++) {
-        this.push(output[i]);
-      }
-    }
-  }
-
-  flush(force) {
-    if (this.flushing && !force) {
-      return;
-    }
-
-    if (!this.corked) {
-      this.cork();
-    }
-    this.corked = true;
-    this.flushing = true;
-
-    if (this.encoding) {
-      return;
-    }
-
-    this.encoder.flush(false, (err, output) => {
-      if (err) {
-        this.emit('error', err);
-      } else {
-        this._push(output);
-      }
-      this.corked = false;
-      this.flushing = false;
-      this.uncork();
-    });
-  }
-}
-
-class TransformStreamDecode extends Transform {
-  constructor(async=true) {
-    super();
-    this.decoder = new StreamDecode(async);
-  }
-
-  _transform(chunk, encoding, next) {
-    this.decoder.transform(chunk, (err, output) => {
-      if (err) {
-        return next(err);
-      }
-      this._push(output);
-      next();
-    });
-  }
-
-  _flush(done) {
-    this.decoder.flush((err, output) => {
-      if (err) {
-        return done(err);
-      }
-      this._push(output);
-      done();
-    });
-  }
-
-  _push(output) {
-    if (output) {
-      for (let i = 0; i < output.length; i++) {
-        this.push(output[i]);
-      }
-    }
-  }
-}
-
-function compress(input, params, cb) {
-  if (typeof params === 'function') {
-    cb = params;
-    params = {};
-  }
-
-  const gotCallback = typeof cb === 'function';
-
-  if (!Buffer.isBuffer(input)) {
-    const err = new Error('Brotli input is not a buffer.');
-    if (gotCallback) {
-      return process.nextTick(cb, err);
-    }
-    return Promise.reject(err);
-  }
-
-  params = { ...params, size_hint: input.length };
-
-  if (gotCallback) {
-    return compressBuffer(input, params, cb);
-  }
-
-  return new Promise(function(resolve, reject) {
-    compressBuffer(input, params, function(err, output) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(output);
-      }
-    });
-  });
-}
-
-function compressBuffer(input, params, cb) {
-  const stream = new TransformStreamEncode(params);
-  const chunks = [];
-  let length = 0;
-  stream.on('error', cb);
-  stream.on('data', function(c) {
-    chunks.push(c);
-    length += c.length;
-  });
-  stream.on('end', function() {
-    cb(null, Buffer.concat(chunks, length));
-  });
-  stream.end(input);
-}
-
-function decompress(input, cb) {
-  const gotCallback = typeof cb === 'function';
-
-  if (!Buffer.isBuffer(input)) {
-    const err = new Error('Brotli input is not a buffer.');
-    if (gotCallback) {
-      return process.nextTick(cb, err);
-    }
-    return Promise.reject(err);
-  }
-
-  if (gotCallback) {
-    return decompressBuffer(input, cb);
-  }
-
-  return new Promise(function(resolve, reject) {
-    decompressBuffer(input, function(err, output) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(output);
-      }
-    });
-  });
-}
-
-function decompressBuffer(input, cb) {
-  const stream = new TransformStreamDecode();
-  const chunks = [];
-  let length = 0;
-  stream.on('error', cb);
-  stream.on('data', function(c) {
-    chunks.push(c);
-    length += c.length;
-  });
-  stream.on('end', function() {
-    cb(null, Buffer.concat(chunks, length));
-  });
-  stream.end(input);
-}
-
-function compressSync(input, params) {
-  if (!Buffer.isBuffer(input)) {
-    throw new Error('Brotli input is not a buffer.');
-  }
-  if (typeof params !== 'object') {
-    params = {};
-  }
-  params = { ...params, size_hint: input.length };
-  const stream = new TransformStreamEncode(params, false);
-  const chunks = [];
-  let length = 0;
-  stream.on('error', function(e) {
-    throw e;
-  });
-  stream.on('data', function(c) {
-    chunks.push(c);
-    length += c.length;
-  });
-  stream.end(input);
-  return Buffer.concat(chunks, length);
-}
-
-function decompressSync(input) {
-  if (!Buffer.isBuffer(input)) {
-    throw new Error('Brotli input is not a buffer.');
-  }
-  const stream = new TransformStreamDecode(false);
-  const chunks = [];
-  let length = 0;
-  stream.on('error', function(e) {
-    throw e;
-  });
-  stream.on('data', function(c) {
-    chunks.push(c);
-    length += c.length;
-  });
-  stream.end(input);
-  return Buffer.concat(chunks, length);
-}
-
-function compressStream(params) {
-  return new TransformStreamEncode(params);
-}
-
-function decompressStream() {
-  return new TransformStreamDecode();
-}
-
-
-/***/ }),
+/* 8 */,
 /* 9 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -2599,28 +2340,33 @@ module.exports = flatten
 flatten.flatten = flatten
 flatten.unflatten = unflatten
 
+function keyIdentity (key) {
+  return key
+}
+
 function flatten (target, opts) {
   opts = opts || {}
 
-  var delimiter = opts.delimiter || '.'
-  var maxDepth = opts.maxDepth
-  var output = {}
+  const delimiter = opts.delimiter || '.'
+  const maxDepth = opts.maxDepth
+  const transformKey = opts.transformKey || keyIdentity
+  const output = {}
 
   function step (object, prev, currentDepth) {
     currentDepth = currentDepth || 1
     Object.keys(object).forEach(function (key) {
-      var value = object[key]
-      var isarray = opts.safe && Array.isArray(value)
-      var type = Object.prototype.toString.call(value)
-      var isbuffer = isBuffer(value)
-      var isobject = (
+      const value = object[key]
+      const isarray = opts.safe && Array.isArray(value)
+      const type = Object.prototype.toString.call(value)
+      const isbuffer = isBuffer(value)
+      const isobject = (
         type === '[object Object]' ||
         type === '[object Array]'
       )
 
-      var newKey = prev
-        ? prev + delimiter + key
-        : key
+      const newKey = prev
+        ? prev + delimiter + transformKey(key)
+        : transformKey(key)
 
       if (!isarray && !isbuffer && isobject && Object.keys(value).length &&
         (!opts.maxDepth || currentDepth < maxDepth)) {
@@ -2639,11 +2385,12 @@ function flatten (target, opts) {
 function unflatten (target, opts) {
   opts = opts || {}
 
-  var delimiter = opts.delimiter || '.'
-  var overwrite = opts.overwrite || false
-  var result = {}
+  const delimiter = opts.delimiter || '.'
+  const overwrite = opts.overwrite || false
+  const transformKey = opts.transformKey || keyIdentity
+  const result = {}
 
-  var isbuffer = isBuffer(target)
+  const isbuffer = isBuffer(target)
   if (isbuffer || Object.prototype.toString.call(target) !== '[object Object]') {
     return target
   }
@@ -2651,7 +2398,7 @@ function unflatten (target, opts) {
   // safely ensure that the key is
   // an integer.
   function getkey (key) {
-    var parsedKey = Number(key)
+    const parsedKey = Number(key)
 
     return (
       isNaN(parsedKey) ||
@@ -2661,19 +2408,52 @@ function unflatten (target, opts) {
       : parsedKey
   }
 
-  var sortedKeys = Object.keys(target).sort(function (keyA, keyB) {
-    return keyA.length - keyB.length
-  })
+  function addKeys (keyPrefix, recipient, target) {
+    return Object.keys(target).reduce(function (result, key) {
+      result[keyPrefix + delimiter + key] = target[key]
 
-  sortedKeys.forEach(function (key) {
-    var split = key.split(delimiter)
-    var key1 = getkey(split.shift())
-    var key2 = getkey(split[0])
-    var recipient = result
+      return result
+    }, recipient)
+  }
+
+  function isEmpty (val) {
+    const type = Object.prototype.toString.call(val)
+    const isArray = type === '[object Array]'
+    const isObject = type === '[object Object]'
+
+    if (!val) {
+      return true
+    } else if (isArray) {
+      return !val.length
+    } else if (isObject) {
+      return !Object.keys(val).length
+    }
+  }
+
+  target = Object.keys(target).reduce((result, key) => {
+    const type = Object.prototype.toString.call(target[key])
+    const isObject = (type === '[object Object]' || type === '[object Array]')
+    if (!isObject || isEmpty(target[key])) {
+      result[key] = target[key]
+      return result
+    } else {
+      return addKeys(
+        key,
+        result,
+        flatten(target[key], opts)
+      )
+    }
+  }, {})
+
+  Object.keys(target).forEach(function (key) {
+    const split = key.split(delimiter).map(transformKey)
+    let key1 = getkey(split.shift())
+    let key2 = getkey(split[0])
+    let recipient = result
 
     while (key2 !== undefined) {
-      var type = Object.prototype.toString.call(recipient[key1])
-      var isobject = (
+      const type = Object.prototype.toString.call(recipient[key1])
+      const isobject = (
         type === '[object Object]' ||
         type === '[object Array]'
       )
@@ -2778,12 +2558,7 @@ module.exports = declarations => {
 /* 107 */,
 /* 108 */,
 /* 109 */,
-/* 110 */
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = require(__webpack_require__.ab + "build/bindings/iltorb.node")
-
-/***/ }),
+/* 110 */,
 /* 111 */,
 /* 112 */
 /***/ (function(module, exports) {
@@ -6887,7 +6662,6 @@ module.exports = exports.default;
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
 const gzipSize = __webpack_require__(527)
-const brotliSize = __webpack_require__(890)
 
 function getCompressionRatio(rawSize, compressedSize) {
   if (rawSize === 0 || compressedSize === 0) {
@@ -6901,7 +6675,6 @@ function getCompressionRatio(rawSize, compressedSize) {
 module.exports = rawCss => {
   const rawBytes = Buffer.byteLength(rawCss, 'utf8')
   const gzipBytes = gzipSize.sync(rawCss)
-  const brotliBytes = brotliSize.sync(rawCss)
 
   return {
     uncompressed: {
@@ -6911,10 +6684,6 @@ module.exports = rawCss => {
       gzip: {
         totalBytes: gzipBytes,
         compressionRatio: getCompressionRatio(rawBytes, gzipBytes)
-      },
-      brotli: {
-        totalBytes: brotliBytes,
-        compressionRatio: getCompressionRatio(rawBytes, brotliBytes)
       }
     }
   }
@@ -7031,32 +6800,7 @@ module.exports = Container;
 
 /***/ }),
 /* 230 */,
-/* 231 */
-/***/ (function(module) {
-
-function durationToSeconds(duration) {
-  if (/\d+ms$/.test(duration)) {
-    return parseInt(duration, 10) / 1000
-  }
-
-  // Complicated workaround for parseInt '0.002s' => 0
-  duration = duration.replace(/s|ms/, '') * 1000
-  return parseInt(duration, 10) / 1000
-}
-
-module.exports = (a, b) => {
-  const A = durationToSeconds(a)
-  const B = durationToSeconds(b)
-
-  if (A === B) {
-    return a.endsWith('ms') ? -1 : 1
-  }
-
-  return A - B
-}
-
-
-/***/ }),
+/* 231 */,
 /* 232 */,
 /* 233 */
 /***/ (function(module, exports, __webpack_require__) {
@@ -14295,10 +14039,9 @@ module.exports = rules => {
     .filter(({selectors}) => selectors.length > 0)
     .sort((a, b) => {
       if (a.selectors.length === b.selectors.length) {
-        return compareStrings.caseInsensitive(
-          a.selectors.join(''),
-          b.selectors.join('')
-        )
+        return compareStrings(a.selectors.join(''), b.selectors.join(''), {
+          caseInsensitive: true
+        })
       }
 
       return a.selectors.length - b.selectors.length
@@ -22368,12 +22111,12 @@ if (process.platform === 'linux') {
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
 const specificity = __webpack_require__(983)
-const {caseInsensitive: stringCompare} = __webpack_require__(699)
+const stringCompare = __webpack_require__(699)
 
 // Sort by identifiers count (high to low), then by alphabet (A-Z)
 function sortByIdentifiersCount(a, b) {
   if (a.count === b.count) {
-    return stringCompare(a.value, b.value)
+    return stringCompare(a.value, b.value, {caseInsensitive: true})
   }
 
   return b.count - a.count
@@ -22834,7 +22577,37 @@ module.exports = atRules => {
 
 
 /***/ }),
-/* 678 */,
+/* 678 */
+/***/ (function(module) {
+
+const sortFn = (a, b) => {
+	const A = normalize(a)
+	const B = normalize(b)
+
+	// If times are the same, put ms in front of s
+	if (A === B) {
+		return a.toLowerCase().endsWith('ms') ? -1 : 1
+	}
+
+	return A - B
+}
+
+const normalize = time => {
+	// If it's a ms value, parse it as-is
+	if (time.toLowerCase().endsWith('ms')) {
+		return parseFloat(time)
+	}
+
+	// Convert s to ms
+	return parseFloat(time) * 1000
+}
+
+module.exports = times => times.sort(sortFn)
+module.exports.sortFn = sortFn
+module.exports.normalize = normalize
+
+
+/***/ }),
 /* 679 */,
 /* 680 */,
 /* 681 */,
@@ -23434,41 +23207,63 @@ module.exports = exports.default;
 "use strict";
 
 
-var alphabet;
-var alphabetIndexMap;
-var alphabetIndexMapLength = 0;
+const defaultAlphabetIndexMap = [];
 
 function isNumberCode(code) {
-  return code >= 48 && code <= 57;
+  return code >= 48/* '0' */ && code <= 57/* '9' */;
 }
 
-function naturalCompare(a, b) {
-  var lengthA = (a += '').length;
-  var lengthB = (b += '').length;
-  var aIndex = 0;
-  var bIndex = 0;
+function naturalCompare(a, b, opts) {
+  if (typeof a !== 'string') {
+    throw new TypeError(`The first argument must be a string. Received type '${typeof a}'`);
+  }
+  if (typeof b !== 'string') {
+    throw new TypeError(`The second argument must be a string. Received type '${typeof b}'`);
+  }
 
-  while (aIndex < lengthA && bIndex < lengthB) {
-    var charCodeA = a.charCodeAt(aIndex);
-    var charCodeB = b.charCodeAt(bIndex);
+  const lengthA = a.length;
+  const lengthB = b.length;
+  let indexA = 0;
+  let indexB = 0;
+  let alphabetIndexMap = defaultAlphabetIndexMap;
+  let firstDifferenceInLeadingZeros = 0;
+
+  if (opts) {
+    if (opts.caseInsensitive) {
+      a = a.toLowerCase();
+      b = b.toLowerCase();
+    }
+
+    if (opts.alphabet) {
+      alphabetIndexMap = buildAlphabetIndexMap(opts.alphabet);
+    }
+  }
+
+  while (indexA < lengthA && indexB < lengthB) {
+    let charCodeA = a.charCodeAt(indexA);
+    let charCodeB = b.charCodeAt(indexB);
 
     if (isNumberCode(charCodeA)) {
       if (!isNumberCode(charCodeB)) {
         return charCodeA - charCodeB;
       }
 
-      var numStartA = aIndex;
-      var numStartB = bIndex;
+      let numStartA = indexA;
+      let numStartB = indexB;
 
-      while (charCodeA === 48 && ++numStartA < lengthA) {
+      while (charCodeA === 48/* '0' */ && ++numStartA < lengthA) {
         charCodeA = a.charCodeAt(numStartA);
       }
-      while (charCodeB === 48 && ++numStartB < lengthB) {
+      while (charCodeB === 48/* '0' */ && ++numStartB < lengthB) {
         charCodeB = b.charCodeAt(numStartB);
       }
 
-      var numEndA = numStartA;
-      var numEndB = numStartB;
+      if (numStartA !== numStartB && firstDifferenceInLeadingZeros === 0) {
+        firstDifferenceInLeadingZeros = numStartA - numStartB;
+      }
+
+      let numEndA = numStartA;
+      let numEndB = numStartB;
 
       while (numEndA < lengthA && isNumberCode(a.charCodeAt(numEndA))) {
         ++numEndA;
@@ -23477,27 +23272,27 @@ function naturalCompare(a, b) {
         ++numEndB;
       }
 
-      var difference = numEndA - numStartA - numEndB + numStartB; // numA length - numB length
-      if (difference) {
+      let difference = numEndA - numStartA - numEndB + numStartB; // numA length - numB length
+      if (difference !== 0) {
         return difference;
       }
 
       while (numStartA < numEndA) {
         difference = a.charCodeAt(numStartA++) - b.charCodeAt(numStartB++);
-        if (difference) {
+        if (difference !== 0) {
           return difference;
         }
       }
 
-      aIndex = numEndA;
-      bIndex = numEndB;
+      indexA = numEndA;
+      indexB = numEndB;
       continue;
     }
 
     if (charCodeA !== charCodeB) {
       if (
-        charCodeA < alphabetIndexMapLength &&
-        charCodeB < alphabetIndexMapLength &&
+        charCodeA < alphabetIndexMap.length &&
+        charCodeB < alphabetIndexMap.length &&
         alphabetIndexMap[charCodeA] !== -1 &&
         alphabetIndexMap[charCodeB] !== -1
       ) {
@@ -23507,53 +23302,46 @@ function naturalCompare(a, b) {
       return charCodeA - charCodeB;
     }
 
-    ++aIndex;
-    ++bIndex;
+    ++indexA;
+    ++indexB;
   }
 
-  if (aIndex >= lengthA && bIndex < lengthB && lengthA >= lengthB) {
-    return -1;
-  }
-
-  if (bIndex >= lengthB && aIndex < lengthA && lengthB >= lengthA) {
+  if (indexA < lengthA) { // `b` is a substring of `a`
     return 1;
   }
 
-  return lengthA - lengthB;
+  if (indexB < lengthB) { // `a` is a substring of `b`
+    return -1;
+  }
+
+  return firstDifferenceInLeadingZeros;
 }
 
-naturalCompare.caseInsensitive = naturalCompare.i = function(a, b) {
-  return naturalCompare(('' + a).toLowerCase(), ('' + b).toLowerCase());
-};
+const alphabetIndexMapCache = {};
 
-Object.defineProperties(naturalCompare, {
-  alphabet: {
-    get: function() {
-      return alphabet;
-    },
+function buildAlphabetIndexMap(alphabet) {
+  const existingMap = alphabetIndexMapCache[alphabet];
+  if (existingMap !== undefined) {
+    return existingMap;
+  }
 
-    set: function(value) {
-      alphabet = value;
-      alphabetIndexMap = [];
+  const indexMap = [];
+  const maxCharCode = alphabet.split('').reduce((maxCode, char) => {
+    return Math.max(maxCode, char.charCodeAt(0));
+  }, 0);
 
-      var i = 0;
+  for (let i = 0; i <= maxCharCode; i++) {
+    indexMap.push(-1);
+  }
 
-      if (alphabet) {
-        for (; i < alphabet.length; i++) {
-          alphabetIndexMap[alphabet.charCodeAt(i)] = i;
-        }
-      }
+  for (let i = 0; i < alphabet.length; i++) {
+    indexMap[alphabet.charCodeAt(i)] = i;
+  }
 
-      alphabetIndexMapLength = alphabetIndexMap.length;
+  alphabetIndexMapCache[alphabet] = indexMap;
 
-      for (i = 0; i < alphabetIndexMapLength; i++) {
-        if (alphabetIndexMap[i] === undefined) {
-          alphabetIndexMap[i] = -1;
-        }
-      }
-    },
-  },
-});
+  return indexMap;
+}
 
 module.exports = naturalCompare;
 
@@ -24325,7 +24113,11 @@ module.exports = function (x) {
 const stringSortFn = __webpack_require__(699)
 
 module.exports = (values, sortFn) => {
-  sortFn = sortFn || stringSortFn.caseInsensitive
+  sortFn =
+    sortFn ||
+    function(a, b) {
+      return stringSortFn(String(a), String(b), {caseInsensitive: true})
+    }
 
   // Create a Map of unique values and their counts
   const reduced = [
@@ -24389,7 +24181,7 @@ function extractColorsFromDeclaration(declaration) {
         return colors.push(node)
       }
     })
-  } catch (error) {}
+  } catch (_) {}
 
   if (colors.length > 0) {
     declaration.colors = colors.map(color => color.toString().trim())
@@ -42273,73 +42065,7 @@ module.exports = function repeat(ele, num) {
 /* 887 */,
 /* 888 */,
 /* 889 */,
-/* 890 */
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-var duplexer = __webpack_require__(942);
-var iltorb = __webpack_require__(8);
-var stream = __webpack_require__(413);
-
-/**
- * @param {!Buffer|string} str
- * @param {!Object=} opt_params
- */
-function brotliSize(str, opt_params) {
-  if (typeof str == 'string') {
-    str = new Buffer(str, 'utf8');
-  }
-  return iltorb.compress(str, opt_params).then(function(result) {
-    return result.length;
-  });
-}
-
-module.exports = brotliSize;
-
-/**
- * @param {!Buffer|string} str
- * @param {!Object=} opt_params
- */
-brotliSize.sync = function(str, opt_params) {
-  if (typeof str == 'string') {
-    str = new Buffer(str, 'utf8');
-  }
-  return iltorb.compressSync(str, opt_params).length;
-};
-
-
-/**
- * @param {!Object=} opt_params
- */
-brotliSize.stream = function(opt_params) {
-  opt_params = opt_params || {};
-  var input = new stream.PassThrough();
-  var output = new stream.PassThrough();
-  var wrapper = duplexer(input, output);
-
-  var brotliSize = 0;
-  var brotli = iltorb.compressStream(opt_params)
-    .on('data', function(buf) {
-      brotliSize += buf.length;
-    })
-    .on('error', function() {
-      wrapper.brotliSize = 0;
-    })
-    .on('end', function() {
-      wrapper.brotliSize = brotliSize;
-      wrapper.emit('brotli-size', brotliSize);
-      output.end();
-    });
-
-  input.pipe(brotli);
-  input.pipe(output, {end: false});
-
-  return wrapper;
-};
-
-
-/***/ }),
+/* 890 */,
 /* 891 */,
 /* 892 */,
 /* 893 */
@@ -42651,7 +42377,7 @@ module.exports = selectors => {
 
     try {
       complexity = selectorComplexity(selector)
-    } catch (error) {
+    } catch (_) {
       // Fail silently, ignoring the error
     }
 
@@ -42926,9 +42652,9 @@ module.exports = function(value) {
 
 const {parse} = __webpack_require__(707)
 const splitValue = __webpack_require__(754)
+const {sortFn: timeSortFn} = __webpack_require__(678)
 const uniquer = __webpack_require__(771)
 const {KEYWORDS} = __webpack_require__(578)
-const durationSort = __webpack_require__(231)
 
 function getSingleDuration(animation) {
   let duration
@@ -43010,7 +42736,7 @@ module.exports = declarations => {
 
   const {unique: uniqueDurations, totalUnique: totalUniqueDurations} = uniquer(
     durations,
-    durationSort
+    timeSortFn
   )
 
   const timingFunctions = all
