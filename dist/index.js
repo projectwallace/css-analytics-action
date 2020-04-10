@@ -43268,6 +43268,10 @@ module.exports = ({ stats }) => {
 }
 
 function row([key, value]) {
+	if (Array.isArray(value)) {
+		value = 'N/A'
+	}
+
 	if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
 		value =
 			`<ol>` + value.map((item) => `<li><code>${item}</code></li>`) + `</ol>`
