@@ -23,7 +23,8 @@ async function run() {
 			|--------|-------|
 			| \`a.b\` | \`1\` |
 		`
-		console.log(payload)
+		console.log(github.context)
+		// console.log(payload)
 		const owner = payload.repository.owner.login
 		const repo = payload.repository.name
 		const issue_number = payload.number
