@@ -2,6 +2,7 @@ const fs = require('fs')
 const core = require('@actions/core')
 const github = require('@actions/github')
 const analyze = require('@projectwallace/css-analyzer')
+const createComment = require('./create-comment')
 
 async function run() {
 	try {
@@ -86,21 +87,7 @@ async function run() {
 
 		// POST the actual PR comment
 		const stats = await analyze(css)
-		const formattedBody = `
-			## CSS Analytics
-
-			| Metric  | Value: |
-			|---------|--------|
-			| \`a.b\` | \`1\`  |
-			${Object.entries(stats)
-				.map(([key, value]) => {
-					return `| ${key} | ${value} |`
-				})
-				.join('\n')}
-		`
-			.split('\n')
-			.map((line) => line.trim())
-			.join('\n')
+		const formattedBody = createComment({ stats })
 
 		await octokit.graphql(
 			`

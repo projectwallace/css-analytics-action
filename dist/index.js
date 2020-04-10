@@ -22429,6 +22429,7 @@ const fs = __webpack_require__(747)
 const core = __webpack_require__(470)
 const github = __webpack_require__(469)
 const analyze = __webpack_require__(803)
+const createComment = __webpack_require__(949)
 
 async function run() {
 	try {
@@ -22513,21 +22514,7 @@ async function run() {
 
 		// POST the actual PR comment
 		const stats = await analyze(css)
-		const formattedBody = `
-			## CSS Analytics
-
-			| Metric  | Value: |
-			|---------|--------|
-			| \`a.b\` | \`1\`  |
-			${Object.entries(stats)
-				.map(([key, value]) => {
-					return `| ${key} | ${value} |`
-				})
-				.join('\n')}
-		`
-			.split('\n')
-			.map((line) => line.trim())
-			.join('\n')
+		const formattedBody = createComment({ stats })
 
 		await octokit.graphql(
 			`
@@ -43264,7 +43251,39 @@ module.exports = function(fn) {
 }
 
 /***/ }),
-/* 949 */,
+/* 949 */
+/***/ (function(module) {
+
+module.exports = ({ stats }) => {
+	return `
+		## CSS Analytics
+
+		| Metric | Value |
+		|--------|-------|
+		${Object.entries(stats).map(row).join('\n')}
+		`
+		.split('\n')
+		.map((line) => line.trim())
+		.join('\n')
+}
+
+function row([key, value]) {
+	if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+		value = `<ol>` + value.map((item) => `<li>${item}</li>`) + `</ol>`
+	}
+
+	if (Array.isArray(value) && value.some((item) => item.value && item.count)) {
+		value =
+			`<ol>` +
+			value.map((item) => `<li>${item.value} (${item.count})</li>`).join('') +
+			'</ol>'
+	}
+
+	return `| \`${key}\` | ${value} |`
+}
+
+
+/***/ }),
 /* 950 */
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
