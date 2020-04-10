@@ -17,46 +17,44 @@ async function run() {
 		// const css = fs.readFileSync(cssPath, 'utf8')
 
 		// Find any previous comments by GitHub Bot
-		const { data } = await octokit
-			.graphql(
-				`
-			query RecentBotComments(
-				$owner: String!,
-				$repoName: String!,
-				$prNumber: Int!
-			) {
-				repository(owner: $owner, name: $repoName) {
-					pullRequest(number: $prNumber) {
-						comments(last: 10) {
-							totalCount
-							edges {
-								node {
-									id
-									bodyText
-									author {
-										login
+		const comments = await octokit.graphql(
+			`
+				query RecentBotComments(
+					$owner: String!,
+					$repoName: String!,
+					$prNumber: Int!
+				) {
+					repository(owner: $owner, name: $repoName) {
+						pullRequest(number: $prNumber) {
+							comments(last: 10) {
+								totalCount
+								edges {
+									node {
+										id
+										bodyText
+										author {
+											login
+										}
 									}
 								}
 							}
 						}
 					}
 				}
+				`,
+			{
+				owner: payload.repository.owner.login,
+				repoName: payload.repository.name,
+				prNumber: parseInt(payload.pull_request.number, 10),
 			}
-			`,
-				{
-					owner: payload.repository.owner.login,
-					repoName: payload.repository.name,
-					prNumber: Number(payload.pull_request.number),
-				}
-			)
-			.catch((error) => {
-				console.error(error)
-				core.setFailed(error.message)
-			})
+		)
 
-		console.log(data)
+		console.log({ comments })
 
-		if (data.repository.pullRequest.comments.totalCount > 0) {
+		if (
+			comments &&
+			comments.data.repository.pullRequest.comments.totalCount > 0
+		) {
 			// And mark them as OUTDATED
 			await Promise.all(
 				data.repository.pullRequest.comments.edges
