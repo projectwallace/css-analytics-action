@@ -1,0 +1,38 @@
+{
+	"name": "@projectwallace/css-analytics-action",
+	"version": "0.1.0",
+	"description": "A GitHub action that adds a comment to your PR's about your CSS analytics",
+	"main": "dist/index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"build": "ncc build src/index.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/projectwallace/css-analytics-action.git"
+	},
+	"keywords": [],
+	"author": "Bart Veneman",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/projectwallace/css-analytics-action/issues"
+	},
+	"homepage": "https://github.com/projectwallace/css-analytics-action#readme",
+	"devDependencies": {
+		"@actions/core": "^1.2.3",
+		"@octokit/graphql": "^4.3.1",
+		"@projectwallace/css-analyzer": "^2.7.1",
+		"@zeit/ncc": "^0.22.0"
+	},
+	"dependencies": {
+		"pretty-bytes": "^5.3.0"
+	},
+	"prettier": {
+		"trailingComma": "es5",
+		"bracketSpacing": true,
+		"arrowParens": "always",
+		"semi": false,
+		"useTabs": true,
+		"singleQuote": true
+	}
+}

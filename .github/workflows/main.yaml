@@ -1,0 +1,17 @@
+name: CSS Quality
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  css:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: CSS Analytics
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          css-path: ./test/fixture.css
