@@ -8553,8 +8553,9 @@ async function run() {
 		// const css = fs.readFileSync(cssPath, 'utf8')
 
 		// Find any previous comments by GitHub Bot
-		const { data } = await octokit.graphql(
-			`
+		const { data } = await octokit
+			.graphql(
+				`
 			query RecentBotComments(
 				$owner: String!,
 				$repoName: String!,
@@ -8578,12 +8579,16 @@ async function run() {
 				}
 			}
 			`,
-			{
-				owner: payload.repository.owner.login,
-				repoName: payload.repository.name,
-				prNumber: payload.pull_request.number,
-			}
-		)
+				{
+					owner: payload.repository.owner.login,
+					repoName: payload.repository.name,
+					prNumber: Number(payload.pull_request.number),
+				}
+			)
+			.catch((error) => {
+				console.error(error)
+				core.setFailed(error.message)
+			})
 
 		console.log(data)
 
@@ -8591,6 +8596,7 @@ async function run() {
 			// And mark them as OUTDATED
 			await Promise.all(
 				data.repository.pullRequest.comments.edges
+					.filter(({ node }) => node.author.login === 'github-actions')
 					.map(({ node }) => node.id)
 					.map((id) => {
 						return octokit.graphql(
