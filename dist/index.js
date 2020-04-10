@@ -8587,10 +8587,7 @@ async function run() {
 
 		console.log({ comments })
 
-		if (
-			comments &&
-			comments.data.repository.pullRequest.comments.totalCount > 0
-		) {
+		if (comments && comments.repository.pullRequest.comments.totalCount > 0) {
 			// And mark them as OUTDATED
 			await Promise.all(
 				data.repository.pullRequest.comments.edges
