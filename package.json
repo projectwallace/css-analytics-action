@@ -19,7 +19,7 @@
 	},
 	"homepage": "https://github.com/projectwallace/css-analytics-action#readme",
 	"devDependencies": {
-		"@actions/core": "^1.2.3",
+		"@actions/core": "^1.2.6",
 		"@octokit/graphql": "^4.3.1",
 		"@projectwallace/css-analyzer": "^2.7.1",
 		"@zeit/ncc": "^0.22.0"
